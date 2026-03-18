@@ -1,6 +1,14 @@
 """
 本地运行脚本
 """
+import os
+from dotenv import load_dotenv
+
+# 加载 .env 文件
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
+
+print(f"CLIENT_ID: {os.getenv('SECONDME_CLIENT_ID', 'NOT SET')[:10]}...")
+
 from wsgiref.simple_server import make_server
 from api.index import app
 

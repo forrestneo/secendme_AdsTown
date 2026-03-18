@@ -884,17 +884,26 @@
             btn.disabled = true;
             btn.textContent = '⏳ 生成中...';
             
+            // 获取用户信息（如果已登录）
+            const userToken = localStorage.getItem('adstown_token');
+            const userName = localStorage.getItem('adstown_user');
+            const userInfo = userToken ? { name: userName, role: 'SecondMe 用户', personality: '个性化' } : null;
+            
             try {
                 const res = await fetch(`${API_BASE}/api/generate-ad`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        ...(userToken ? { 'Authorization': `Bearer ${userToken}` } : {})
+                    },
                     body: JSON.stringify({
                         resident: creator,
                         product: product,
                         adType: adType,
                         adFormat: adFormat,
                         channel: channel,
-                        targetAudience: targetAudience
+                        targetAudience: targetAudience,
+                        user: userInfo
                     })
                 });
                 
@@ -914,11 +923,15 @@
                     qualityScore = Math.floor(Math.random() * 3) + 7;
                 }
                 
+                // 如果用户登录了，用用户名作为创作者
+                const finalCreatorName = userName || creator.name;
+                const finalCreatorAvatar = userName ? '👤' : creator.avatar;
+                
                 const newAd = {
                     id: 'ad_' + Date.now(),
-                    creatorId: creator.id,
-                    creatorName: creator.name,
-                    creatorAvatar: creator.avatar,
+                    creatorId: userName ? 'user_' + userName : creator.id,
+                    creatorName: finalCreatorName,
+                    creatorAvatar: finalCreatorAvatar,
                     productName: product.name,
                     productType: product.productType,
                     adType: adType,
@@ -927,7 +940,8 @@
                     content: content,
                     creativeScore: creativityScore,
                     qualityScore: qualityScore,
-                    createdAt: new Date().toISOString()
+                    createdAt: new Date().toISOString(),
+                    isUserAd: !!userName  // 标记是否是用户广告
                 };
                 
                 state.ads.unshift(newAd);

@@ -600,6 +600,7 @@
             <div class="top-actions">
                 <button class="btn btn-secondary" onclick="refreshAds()">🔄 刷新</button>
                 <button class="btn btn-primary" onclick="openAdModal()">➕ 投放广告</button>
+                <button class="btn btn-secondary" id="avatarsBtn" onclick="openAvatarsModal()" style="display:none">🤖 我的分身</button>
                 <button class="login-btn" id="loginBtn" onclick="login()">登录 SecondMe</button>
             </div>
         </header>
@@ -709,6 +710,72 @@
         </div>
     </div>
     
+    <!-- 分身管理弹窗 -->
+    <div class="modal-overlay" id="avatarsModal">
+        <div class="modal" style="max-width:500px">
+            <div class="modal-header">
+                <h2 class="modal-title">🤖 我的分身</h2>
+                <button class="modal-close" onclick="closeAvatarsModal()">×</button>
+            </div>
+            <div style="padding:20px">
+                <!-- 创建新分身 -->
+                <div style="margin-bottom:20px;padding:15px;background:var(--bg-card);border-radius:8px">
+                    <h3 style="margin-bottom:12px;font-size:1rem">➕ 创建新分身</h3>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                        <div>
+                            <label style="font-size:0.8rem;color:var(--text-secondary)">分身名称</label>
+                            <input type="text" id="avatarName" placeholder="给我的分身起个名" style="width:100%;padding:8px;border-radius:6px;border:1px solid #555;background:var(--bg-secondary);color:var(--text-primary)">
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem;color:var(--text-secondary)">形象</label>
+                            <select id="avatarEmoji" style="width:100%;padding:8px;border-radius:6px;border:1px solid #555;background:var(--bg-secondary);color:var(--text-primary)">
+                                <option value="😊">😊 微笑</option>
+                                <option value="😎">😎 酷</option>
+                                <option value="🤓">🤓 理工</option>
+                                <option value="👩‍💻">👩‍💻 程序员</option>
+                                <option value="👨‍🎨">👨‍🎨 设计师</option>
+                                <option value="🧑‍🍳">🧑‍🍳 厨师</option>
+                                <option value="👨‍🏫">👨‍🏫 老师</option>
+                                <option value="👩‍⚕️">👩‍⚕️ 医生</option>
+                                <option value="🎮">🎮 游戏</option>
+                                <option value="🚀">🚀 创业者</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-top:10px">
+                        <label style="font-size:0.8rem;color:var(--text-secondary)">产品名称</label>
+                        <input type="text" id="avatarProduct" placeholder="比如：我的小程序、咨询服务" style="width:100%;padding:8px;border-radius:6px;border:1px solid #555;background:var(--bg-secondary);color:var(--text-primary)">
+                    </div>
+                    <div style="margin-top:10px">
+                        <label style="font-size:0.8rem;color:var(--text-secondary)">产品描述</label>
+                        <input type="text" id="avatarProductDesc" placeholder="一句话描述你的产品" style="width:100%;padding:8px;border-radius:6px;border:1px solid #555;background:var(--bg-secondary);color:var(--text-primary)">
+                    </div>
+                    <div style="margin-top:10px">
+                        <label style="font-size:0.8rem;color:var(--text-secondary)">产品价格</label>
+                        <input type="text" id="avatarProductPrice" placeholder="比如：免费、99元" style="width:100%;padding:8px;border-radius:6px;border:1px solid #555;background:var(--bg-secondary);color:var(--text-primary)">
+                    </div>
+                    <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                        <div>
+                            <label style="font-size:0.8rem;color:var(--text-secondary)">广告类型</label>
+                            <select id="avatarAdType" style="width:100%;padding:8px;border-radius:6px;border:1px solid #555;background:var(--bg-secondary);color:var(--text-primary)">
+                                <option value="soft_ad">软广（自然推荐）</option>
+                                <option value="hard_ad">硬广（直接介绍）</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem;color:var(--text-secondary)">发广告间隔（秒）</label>
+                            <input type="number" id="avatarInterval" value="10" min="5" max="60" style="width:100%;padding:8px;border-radius:6px;border:1px solid #555;background:var(--bg-secondary);color:var(--text-primary)">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" style="width:100%;margin-top:15px" onclick="handleCreateAvatar()">创建分身</button>
+                </div>
+                
+                <!-- 分身列表 -->
+                <div id="avatarsList"></div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Toast -->
     <div class="toast" id="toast"></div>
 
@@ -723,10 +790,15 @@
             residents: [],
             ads: [],
             currentUser: null,
+            userId: null,
+            avatars: [],  // 用户分身
             currentTab: 'ads',
             filterZone: null,
             filterType: null
         };
+        
+        // 分身定时器
+        let avatarTimers = {};
         
         // ================== 种子数据 ==================
         const PRESET_RESIDENTS = [
@@ -1136,6 +1208,86 @@
             document.getElementById('adModal').classList.remove('active');
         }
         
+        // 分身模态框
+        function openAvatarsModal() {
+            renderAvatars();
+            document.getElementById('avatarsModal').classList.add('active');
+        }
+        
+        function closeAvatarsModal() {
+            document.getElementById('avatarsModal').classList.remove('active');
+        }
+        
+        function renderAvatars() {
+            const container = document.getElementById('avatarsList');
+            if (!container) return;
+            
+            if (state.avatars.length === 0) {
+                container.innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:20px">还没有分身，快创建一个吧！</p>';
+                return;
+            }
+            
+            container.innerHTML = state.avatars.map(avatar => `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--bg-card);border-radius:8px;margin-bottom:10px">
+                    <div style="display:flex;align-items:center;gap:12px">
+                        <span style="font-size:1.5rem">${avatar.avatar}</span>
+                        <div>
+                            <div style="font-weight:500">${avatar.name}</div>
+                            <div style="font-size:0.8rem;color:var(--text-secondary)">${avatar.product?.name || '未设置产品'}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px">
+                        <button class="btn ${avatar.is_active ? 'btn-secondary' : 'btn-primary'}" 
+                            style="padding:6px 12px;font-size:0.8rem"
+                            onclick="toggleAvatar('${avatar.id}', ${!avatar.is_active})">
+                            ${avatar.is_active ? '⏹ 停止' : '▶ 启动'}
+                        </button>
+                        <button class="btn" style="padding:6px 12px;font-size:0.8rem;background:var(--danger);color:#fff" 
+                            onclick="deleteAvatar('${avatar.id}')">🗑</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function handleCreateAvatar() {
+            const name = document.getElementById('avatarName').value.trim();
+            const avatar = document.getElementById('avatarEmoji').value;
+            const productName = document.getElementById('avatarProduct').value.trim();
+            const productDesc = document.getElementById('avatarProductDesc').value.trim();
+            const productPrice = document.getElementById('avatarProductPrice').value.trim();
+            const adType = document.getElementById('avatarAdType').value;
+            const interval = parseInt(document.getElementById('avatarInterval').value) || 10;
+            
+            if (!name) {
+                showToast('请输入分身名称', 'error');
+                return;
+            }
+            
+            if (!productName) {
+                showToast('请输入产品名称', 'error');
+                return;
+            }
+            
+            createAvatar({
+                name: name,
+                avatar: avatar,
+                product: {
+                    name: productName,
+                    description: productDesc,
+                    price: productPrice,
+                    productType: 'normal'
+                },
+                ad_type: adType,
+                ad_interval: interval
+            });
+            
+            // 清空表单
+            document.getElementById('avatarName').value = '';
+            document.getElementById('avatarProduct').value = '';
+            document.getElementById('avatarProductDesc').value = '';
+            document.getElementById('avatarProductPrice').value = '';
+        }
+        
         function openResidentModal(residentOrId) {
             const resident = typeof residentOrId === 'string' 
                 ? PRESET_RESIDENTS.find(r => r.id === residentOrId) 
@@ -1192,9 +1344,17 @@
                 document.getElementById('loginBtn').onclick = () => {
                     localStorage.removeItem('adstown_token');
                     localStorage.removeItem('adstown_user');
+                    localStorage.removeItem('adstown_user_id');
+                    // 停止所有分身
+                    Object.keys(avatarTimers).forEach(id => stopAvatarAd(id));
+                    state.avatars = [];
+                    renderAvatars();
+                    document.getElementById('avatarsBtn').style.display = 'none';
                     showToast('已退出登录', 'success');
                     updateLoginState();
                 };
+                // 显示分身按钮
+                document.getElementById('avatarsBtn').style.display = 'inline-block';
             }
         }
         
@@ -1204,9 +1364,172 @@
             if (params.get('token')) {
                 localStorage.setItem('adstown_token', params.get('token'));
                 localStorage.setItem('adstown_user', params.get('user_name') || '用户');
+                localStorage.setItem('adstown_user_id', params.get('user_id') || params.get('user_name') || 'user');
                 window.history.replaceState({}, '', window.location.pathname);
                 updateLoginState();
+                loadAvatars();
                 showToast('登录成功！', 'success');
+            }
+        }
+        
+        // 加载用户分身列表
+        async function loadAvatars() {
+            const userId = localStorage.getItem('adstown_user_id');
+            if (!userId) return;
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/avatars?user_id=${userId}`);
+                if (res.ok) {
+                    state.avatars = await res.json();
+                    renderAvatars();
+                    // 恢复活跃分身的定时器
+                    state.avatars.forEach(avatar => {
+                        if (avatar.is_active) {
+                            startAvatarAd(avatar);
+                        }
+                    });
+                }
+            } catch (e) {
+                console.log('加载分身失败', e);
+            }
+        }
+        
+        // 启动分身自动发广告
+        function startAvatarAd(avatar) {
+            if (avatarTimers[avatar.id]) {
+                clearInterval(avatarTimers[avatar.id]);
+            }
+            
+            avatarTimers[avatar.id] = setInterval(async () => {
+                await generateAvatarAd(avatar);
+            }, (avatar.ad_interval || 10) * 1000);
+            
+            // 立即发一条
+            generateAvatarAd(avatar);
+        }
+        
+        // 停止分身
+        function stopAvatarAd(avatarId) {
+            if (avatarTimers[avatarId]) {
+                clearInterval(avatarTimers[avatarId]);
+                delete avatarTimers[avatarId];
+            }
+        }
+        
+        // 分身生成广告
+        async function generateAvatarAd(avatar) {
+            const product = avatar.product || {};
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/generate-ad`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user: { name: avatar.name, role: '我的分身', personality: 'AI自动化' },
+                        resident: { name: avatar.name, role: '我的分身', personality: 'AI自动化' },
+                        product: product,
+                        adType: avatar.ad_type || 'soft_ad'
+                    })
+                });
+                
+                if (res.ok) {
+                    const result = await res.json();
+                    const newAd = {
+                        id: 'avatar_' + Date.now(),
+                        creatorId: 'avatar_' + avatar.id,
+                        creatorName: avatar.name,
+                        creatorAvatar: avatar.avatar,
+                        productName: product.name || '产品',
+                        productType: product.productType || 'normal',
+                        adType: avatar.ad_type || 'soft_ad',
+                        adFormat: 'auto',
+                        channel: 'auto',
+                        content: result.content,
+                        creativeScore: result.creativityScore || 7,
+                        qualityScore: result.qualityScore || 7,
+                        createdAt: new Date().toISOString(),
+                        isUserAd: true
+                    };
+                    
+                    state.ads.unshift(newAd);
+                    saveToStorage();
+                    renderAds();
+                }
+            } catch (e) {
+                console.log('分身发广告失败', e);
+            }
+        }
+        
+        // 创建分身
+        async function createAvatar(avatarData) {
+            const userId = localStorage.getItem('adstown_user_id');
+            if (!userId) {
+                showToast('请先登录', 'error');
+                return;
+            }
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/avatars`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        ...avatarData
+                    })
+                });
+                
+                if (res.ok) {
+                    const avatar = await res.json();
+                    state.avatars.push(avatar);
+                    renderAvatars();
+                    showToast('分身创建成功！', 'success');
+                }
+            } catch (e) {
+                showToast('创建失败', 'error');
+            }
+        }
+        
+        // 删除分身
+        async function deleteAvatar(avatarId) {
+            const userId = localStorage.getItem('adstown_user_id');
+            
+            stopAvatarAd(avatarId);
+            
+            try {
+                await fetch(`${API_BASE}/api/avatars/${avatarId}?user_id=${userId}`, {
+                    method: 'DELETE'
+                });
+                state.avatars = state.avatars.filter(a => a.id !== avatarId);
+                renderAvatars();
+                showToast('分身已删除', 'success');
+            } catch (e) {
+                showToast('删除失败', 'error');
+            }
+        }
+        
+        // 切换分身状态
+        async function toggleAvatar(avatarId, isActive) {
+            const userId = localStorage.getItem('adstown_user_id');
+            
+            try {
+                await fetch(`${API_BASE}/api/avatars/${avatarId}/toggle`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, is_active: isActive })
+                });
+                
+                const avatar = state.avatars.find(a => a.id === avatarId);
+                if (avatar) {
+                    avatar.is_active = isActive;
+                    if (isActive) {
+                        startAvatarAd(avatar);
+                    } else {
+                        stopAvatarAd(avatarId);
+                    }
+                }
+                renderAvatars();
+            } catch (e) {
+                showToast('操作失败', 'error');
             }
         }
         

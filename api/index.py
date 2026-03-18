@@ -5,6 +5,7 @@ Vercel Serverless Python
 import os
 import random
 import json
+from datetime import datetime
 
 # 加载 .env 文件（本地开发）
 try:
@@ -28,6 +29,9 @@ SECONDME_AUTH_URL = "https://go.second.me/oauth/"
 SECONDME_TOKEN_URL = "https://api.mindverse.com/gate/lab/api/oauth/token/code"
 SECONDME_PROFILE_URL = "https://api.mindverse.com/gate/lab/api/secondme/user/info"
 
+# 内存存储（Vercel 会重置，生产环境用数据库）
+AVATARS_DATA = {}
+
 def app(environ, start_response):
     """Vercel Python 入口"""
     path = environ.get('PATH_INFO', '/')
@@ -37,7 +41,7 @@ def app(environ, start_response):
     # CORS headers
     headers = [
         ('Access-Control-Allow-Origin', '*'),
-        ('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'),
+        ('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE'),
         ('Access-Control-Allow-Headers', 'Content-Type, Authorization'),
     ]
     
@@ -64,7 +68,7 @@ def app(environ, start_response):
     
     # ===== SecondMe OAuth =====
     
-    # 登录入口 - 跳转 SecondMe 授权页
+    # 登录入口
     if path == '/api/login':
         if not SECONDME_CLIENT_ID:
             start_response('400 Bad Request', [('Content-Type', 'application/json')] + headers)
@@ -74,10 +78,7 @@ def app(environ, start_response):
         params = f"client_id={SECONDME_CLIENT_ID}&redirect_uri={SECONDME_REDIRECT_URI}&response_type=code&scope=user.info,chat&state={state}"
         auth_url = SECONDME_AUTH_URL + "?" + params
         
-        # 重定向到授权页
-        start_response('302 Found', [
-            ('Location', auth_url),
-        ] + headers)
+        start_response('302 Found', [('Location', auth_url)] + headers)
         return [b'']
     
     # OAuth 回调
@@ -85,13 +86,11 @@ def app(environ, start_response):
         from urllib.parse import parse_qs
         query_params = parse_qs(query_string)
         code = query_params.get('code', [''])[0]
-        state = query_params.get('state', [''])[0]
         
         if not code:
             start_response('400 Bad Request', headers)
             return [b'Missing code']
         
-        # 交换 token
         try:
             resp = httpx.post(
                 SECONDME_TOKEN_URL,
@@ -113,7 +112,6 @@ def app(environ, start_response):
             
             access_token = token_data.get("data", {}).get("accessToken")
             
-            # 获取用户信息
             profile_resp = httpx.get(
                 SECONDME_PROFILE_URL,
                 headers={"Authorization": f"Bearer {access_token}"},
@@ -122,10 +120,14 @@ def app(environ, start_response):
             profile = profile_resp.json()
             user_info = profile.get("data", profile)
             user_name = user_info.get("name", user_info.get("username", "Anonymous"))
+            user_id = user_info.get("user_id", user_name)
             
-            # 返回前端（通过 URL 参数）
+            # 初始化用户数据
+            if user_id not in AVATARS_DATA:
+                AVATARS_DATA[user_id] = {"avatars": [], "token": access_token}
+            
             from urllib.parse import quote
-            redirect_url = f"{FRONTEND_URL}?logged_in=true&user_name={quote(user_name)}&token={access_token}"
+            redirect_url = f"{FRONTEND_URL}?logged_in=true&user_name={quote(user_name)}&user_id={quote(user_id)}&token={access_token}"
             start_response('302 Found', [('Location', redirect_url)] + headers)
             return [b'']
             
@@ -162,18 +164,100 @@ def app(environ, start_response):
             }).encode()]
         except:
             start_response('200 OK', [('Content-Type', 'application/json')] + headers)
-            return [json.dumps({"logged_in": False, "error": "Invalid token"}).encode()]
+            return [json.dumps({"logged_in": False}).encode()]
+    
+    # ===== 分身 API =====
+    
+    # 获取用户分身列表
+    if path == '/api/avatars' and method == 'GET':
+        from urllib.parse import parse_qs
+        params = parse_qs(query_string)
+        user_id = params.get('user_id', [''])[0]
+        
+        avatars = AVATARS_DATA.get(user_id, {}).get('avatars', [])
+        start_response('200 OK', [('Content-Type', 'application/json')] + headers)
+        return [json.dumps(avatars).encode()]
+    
+    # 创建分身
+    if path == '/api/avatars' and method == 'POST':
+        try:
+            content_length = int(environ.get('CONTENT_LENGTH', 0))
+            body = environ['wsgi.input'].read(content_length).decode('utf-8')
+            req_data = json.loads(body)
+            
+            user_id = req_data.get('user_id')
+            if not user_id:
+                start_response('400 Bad Request', [('Content-Type', 'application/json')] + headers)
+                return [json.dumps({"error": "user_id required"}).encode()]
+            
+            # 初始化用户数据
+            if user_id not in AVATARS_DATA:
+                AVATARS_DATA[user_id] = {"avatars": [], "token": ""}
+            
+            avatar = {
+                "id": f"avatar_{len(AVATARS_DATA[user_id]['avatars']) + 1}",
+                "name": req_data.get('name', '我的分身'),
+                "avatar": req_data.get('avatar', '😊'),
+                "product": req_data.get('product', {}),
+                "ad_type": req_data.get('ad_type', 'soft_ad'),
+                "ad_interval": req_data.get('ad_interval', 10),  # 秒
+                "is_active": False,
+                "created_at": datetime.now().isoformat()
+            }
+            
+            AVATARS_DATA[user_id]['avatars'].append(avatar)
+            
+            start_response('200 OK', [('Content-Type', 'application/json')] + headers)
+            return [json.dumps(avatar).encode()]
+        except Exception as e:
+            start_response('500 Error', [('Content-Type', 'application/json')] + headers)
+            return [json.dumps({"error": str(e)}).encode()]
+    
+    # 更新分身状态（启动/停止）
+    if path.startswith('/api/avatars/') and path.endswith('/toggle') and method == 'POST':
+        try:
+            content_length = int(environ.get('CONTENT_LENGTH', 0))
+            body = environ['wsgi.input'].read(content_length).decode('utf-8')
+            req_data = json.loads(body)
+            
+            user_id = req_data.get('user_id')
+            avatar_id = path.split('/')[-2]
+            
+            if user_id in AVATARS_DATA:
+                for avatar in AVATARS_DATA[user_id]['avatars']:
+                    if avatar['id'] == avatar_id:
+                        avatar['is_active'] = req_data.get('is_active', False)
+                        start_response('200 OK', [('Content-Type', 'application/json')] + headers)
+                        return [json.dumps(avatar).encode()]
+            
+            start_response('404 Not Found', [('Content-Type', 'application/json')] + headers)
+            return [json.dumps({"error": "Avatar not found"}).encode()]
+        except Exception as e:
+            start_response('500 Error', [('Content-Type', 'application/json')] + headers)
+            return [json.dumps({"error": str(e)}).encode()]
+    
+    # 删除分身
+    if path.startswith('/api/avatars/') and method == 'DELETE':
+        from urllib.parse import parse_qs
+        params = parse_qs(query_string)
+        user_id = params.get('user_id', [''])[0]
+        avatar_id = path.split('/')[-1]
+        
+        if user_id in AVATARS_DATA:
+            AVATARS_DATA[user_id]['avatars'] = [a for a in AVATARS_DATA[user_id]['avatars'] if a['id'] != avatar_id]
+        
+        start_response('200 OK', [('Content-Type', 'application/json')] + headers)
+        return [json.dumps({"success": True}).encode()]
     
     # ===== 广告 API =====
     
-    # Generate ad API
+    # 生成广告
     if path == '/api/generate-ad' and method == 'POST':
         try:
             content_length = int(environ.get('CONTENT_LENGTH', 0))
             body = environ['wsgi.input'].read(content_length).decode('utf-8')
             req_data = json.loads(body)
             
-            # 获取用户信息（如果已登录）
             user_info = req_data.get('user', {})
             user_name = user_info.get('name', '')
             
@@ -181,7 +265,6 @@ def app(environ, start_response):
             product = req_data.get('product', {})
             ad_type = req_data.get('adType', 'soft_ad')
             
-            # 如果用户登录了，用用户名代替居民
             creator_name = user_name if user_name else resident.get('name', '小镇居民')
             creator_role = user_info.get('role', '') if user_name else resident.get('role', '')
             creator_personality = user_info.get('personality', '') if user_name else resident.get('personality', '')
@@ -214,7 +297,6 @@ def app(environ, start_response):
                 except Exception as e:
                     print(f"API error: {e}")
             
-            # Fallback
             if not content:
                 templates = {
                     "soft_ad": [
@@ -249,7 +331,6 @@ def app(environ, start_response):
     start_response('404 Not Found', headers)
     return [b'Not Found']
 
-# For local development
 if __name__ == "__main__":
     from wsgiref.simple_server import make_server
     port = int(os.getenv("PORT", 5000))

@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AdsTown - AI 广告小镇</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent: #f59e0b;
+            --accent-hover: #d97706;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --zone-center: #fef08a;
+            --zone-digital: #bfdbfe;
+            --zone-east: #ede9fe;
+            --zone-craft: #ffedd5;
+            --zone-west: #d1fae5;
+            --zone-finance: #fce7f3;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* 布局 */
+        .app-container {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            grid-template-rows: auto 1fr;
+            height: 100vh;
+            gap: 0;
+        }
+        
+        /* 顶部栏 */
+        .top-bar {
+            grid-column: 1 / -1;
+            background: var(--bg-secondary);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .logo {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .top-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        
+        .btn-primary {
+            background: var(--accent);
+            color: #000;
+        }
+        
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+        
+        .btn-secondary:hover {
+            background: #475569;
+        }
+        
+        /* 地图区域 */
+        .map-area {
+            background: var(--bg-primary);
+            position: relative;
+            overflow: hidden;
+            padding: 20px;
+        }
+        
+        .map-title {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            z-index: 10;
+            background: rgba(15, 23, 42, 0.8);
+            padding: 8px 16px;
+            border-radius: 8px;
+        }
+        
+        /* 像素风格地图 */
+        .pixel-map {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: 
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        
+        /* 区域 */
+        .zone {
+            position: absolute;
+            border-radius: 12px;
+            padding: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            opacity: 0.85;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .zone:hover {
+            opacity: 1;
+            transform: scale(1.02);
+        }
+        
+        .zone-center { left: 20%; top: 30%; width: 30%; height: 25%; background: var(--zone-center); color: #713f12; }
+        .zone-digital { right: 5%; top: 5%; width: 35%; height: 28%; background: var(--zone-digital); color: #1e40af; }
+        .zone-east { right: 5%; top: 38%; width: 30%; height: 25%; background: var(--zone-east); color: #5b21b6; }
+        .zone-craft { left: 3%; bottom: 5%; width: 28%; height: 30%; background: var(--zone-craft); color: #9a3412; }
+        .zone-west { left: 3%; top: 30%; width: 28%; height: 25%; background: var(--zone-west); color: #065f46; }
+        .zone-finance { right: 15%; bottom: 5%; width: 30%; height: 25%; background: var(--zone-finance); color: #9d1745; }
+        
+        /* 道路 */
+        .road {
+            position: absolute;
+            background: rgba(255,255,255,0.15);
+        }
+        
+        .road-h1 { top: 20%; left: 0; right: 0; height: 8px; }
+        .road-h2 { top: 45%; left: 0; right: 0; height: 8px; }
+        .road-h3 { top: 70%; left: 0; right: 0; height: 8px; }
+        .road-v1 { left: 20%; top: 0; bottom: 0; width: 8px; }
+        .road-v2 { left: 45%; top: 0; bottom: 0; width: 8px; }
+        .road-v3 { left: 70%; top: 0; bottom: 0; width: 8px; }
+        
+        /* 建筑 */
+        .building {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        .building:hover {
+            transform: scale(1.15);
+            z-index: 10;
+        }
+        
+        /* 居民 */
+        .resident {
+            position: absolute;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid rgba(255,255,255,0.3);
+            z-index: 5;
+        }
+        
+        .resident:hover {
+            transform: scale(1.3);
+            z-index: 10;
+            border-color: var(--accent);
+        }
+        
+        .resident-label {
+            position: absolute;
+            bottom: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.65rem;
+            white-space: nowrap;
+            background: rgba(0,0,0,0.7);
+            padding: 2px 6px;
+            border-radius: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .resident:hover .resident-label {
+            opacity: 1;
+        }
+        
+        /* 侧边栏 */
+        .sidebar {
+            background: var(--bg-secondary);
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .sidebar-tabs {
+            display: flex;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+        
+        .tab.active {
+            color: var(--accent);
+            border-bottom: 2px solid var(--accent);
+        }
+        
+        .tab:hover:not(.active) {
+            color: var(--text-primary);
+        }
+        
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+        
+        /* 广告卡片 */
+        .ad-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 12px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .ad-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+        
+        .ad-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .ad-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+        
+        .ad-info {
+            flex: 1;
+        }
+        
+        .ad-author {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .ad-meta {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        
+        .ad-content {
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+        
+        .ad-tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        
+        .tag {
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.1);
+            color: var(--text-secondary);
+        }
+        
+        .tag-type-soft { background: #d1fae5; color: #065f46; }
+        .tag-type-hard { background: #fef3c7; color: #92400e; }
+        .tag-bubble { background: #fee2e2; color: #dc2626; }
+        
+        .ad-scores {
+            display: flex;
+            gap: 12px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .score-item {
+            flex: 1;
+        }
+        
+        .score-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        
+        .score-bar {
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .score-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+        
+        /* 统计栏 */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            padding: 12px;
+            background: var(--bg-card);
+            border-radius: 10px;
+            margin-bottom: 12px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+        
+        /* 弹窗 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+        
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 24px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            transform: scale(0.9);
+            transition: transform 0.3s;
+        }
+        
+        .modal-overlay.active .modal {
+            transform: scale(1);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: none;
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+        
+        /* 表单 */
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        
+        .form-select, .form-input, .form-textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-family: inherit;
+        }
+        
+        .form-select:focus, .form-input:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        /* 登录按钮 */
+        .login-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+        
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+        }
+        
+        /* 加载动画 */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+        
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255,255,255,0.2);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+        }
+        
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 12px;
+        }
+        
+        /* 响应式 */
+        @media (max-width: 900px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 300px 1fr;
+            }
+            
+            .zone { font-size: 0.65rem; }
+            .building { width: 32px; height: 32px; font-size: 1.2rem; }
+            .resident { width: 28px; height: 28px; font-size: 1rem; }
+        }
+        
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+        
+        /* Toast 提示 */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--bg-card);
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            z-index: 2000;
+            transition: transform 0.3s;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        .toast.success { border-color: var(--success); }
+        .toast.error { border-color: var(--danger); }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 顶部栏 -->
+        <header class="top-bar">
+            <div class="logo">
+                <span>🏘️</span>
+                <span>AdsTown</span>
+            </div>
+            <div class="top-actions">
+                <button class="btn btn-secondary" onclick="refreshAds()">🔄 刷新</button>
+                <button class="btn btn-primary" onclick="openAdModal()">➕ 投放广告</button>
+                <button class="login-btn" id="loginBtn" onclick="login()">登录 SecondMe</button>
+            </div>
+        </header>
+        
+        <!-- 地图区域 -->
+        <main class="map-area">
+            <div class="map-title">🏘️ AI 小镇地图</div>
+            <div class="pixel-map" id="map">
+                <!-- 区域 -->
+                <div class="zone zone-center" onclick="filterByZone('center')">🏛️ 中央广场</div>
+                <div class="zone zone-digital" onclick="filterByZone('digital')">💻 数字区</div>
+                <div class="zone zone-east" onclick="filterByZone('east')">🔮 东区</div>
+                <div class="zone zone-craft" onclick="filterByZone('craft')">🔨 工匠区</div>
+                <div class="zone zone-west" onclick="filterByZone('west')">🎭 西区</div>
+                <div class="zone zone-finance" onclick="filterByZone('finance')">🏦 金融区</div>
+                
+                <!-- 道路 -->
+                <div class="road road-h1"></div>
+                <div class="road road-h2"></div>
+                <div class="road road-h3"></div>
+                <div class="road road-v1"></div>
+                <div class="road road-v2"></div>
+                <div class="road road-v3"></div>
+                
+                <!-- 建筑和居民将通过 JS 渲染 -->
+            </div>
+        </main>
+        
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-tabs">
+                <div class="tab active" data-tab="ads" onclick="switchTab('ads')">📺 广告</div>
+                <div class="tab" data-tab="residents" onclick="switchTab('residents')">👥 居民</div>
+                <div class="tab" data-tab="stats" onclick="switchTab('stats')">📊 统计</div>
+            </div>
+            <div class="sidebar-content" id="sidebarContent">
+                <!-- 内容通过 JS 渲染 -->
+            </div>
+        </aside>
+    </div>
+    
+    <!-- 投放广告弹窗 -->
+    <div class="modal-overlay" id="adModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">📺 投放广告</h2>
+                <button class="modal-close" onclick="closeAdModal()">×</button>
+            </div>
+            <form onsubmit="generateAd(event)">
+                <div class="form-group">
+                    <label class="form-label">选择居民（创作者）</label>
+                    <select class="form-select" id="creatorSelect" required>
+                        <option value="">请选择...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">选择产品</label>
+                    <select class="form-select" id="productSelect" required>
+                        <option value="">请选择...</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">广告类型</label>
+                        <select class="form-select" id="adType" required>
+                            <option value="soft_ad">软广</option>
+                            <option value="hard_ad">硬广</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">广告形式</label>
+                        <select class="form-select" id="adFormat" required>
+                            <option value="story">📖 故事型</option>
+                            <option value="dialogue">💬 对话型</option>
+                            <option value="scene">🌄 场景型</option>
+                            <option value="experience">✨ 体验分享</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">投放渠道</label>
+                    <select class="form-select" id="channel" required>
+                        <option value="moments">朋友圈</option>
+                        <option value="feed">信息流</option>
+                        <option value="group">社群</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">产品目标人群</label>
+                    <input class="form-input" id="targetAudience" placeholder="小镇居民" />
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%;margin-top:10px;" id="generateBtn">
+                    ✨ 生成广告
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 居民详情弹窗 -->
+    <div class="modal-overlay" id="residentModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="residentName">居民详情</h2>
+                <button class="modal-close" onclick="closeResidentModal()">×</button>
+            </div>
+            <div id="residentContent"></div>
+        </div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ================== 配置 ==================
+        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+            ? 'http://localhost:3000' 
+            : '';
+        
+        // ================== 状态 ==================
+        let state = {
+            residents: [],
+            ads: [],
+            currentUser: null,
+            currentTab: 'ads',
+            filterZone: null,
+            filterType: null
+        };
+        
+        // ================== 种子数据 ==================
+        const PRESET_RESIDENTS = [
+            { id: '1', name: '林晓咖', avatar: '☕', role: '咖啡馆主', personality: '温柔细腻', bio: '经营「晨光」咖啡馆', mapX: 35, mapY: 40, mapZone: 'center',
+              products: [{ name: '手冲精品咖啡', category: '餐饮', productType: 'normal', description: '精选单品豆', price: '28-45元/杯', targetAudience: '追求品质生活' }] },
+            { id: '2', name: '程序猿小王', avatar: '💻', role: '独立开发者', personality: '理性直接', bio: '在数字区靠代码为生', mapX: 70, mapY: 25, mapZone: 'digital',
+              products: [{ name: '小镇记账助手', category: '虚拟服务', productType: 'normal', description: 'AI记账工具', price: '免费/月', targetAudience: '商家' }] },
+            { id: '3', name: '魔法师阿紫', avatar: '🔮', role: '魔法学院院长', personality: '神秘优雅', bio: '经营「紫晶魔法学院」', mapX: 80, mapY: 65, mapZone: 'east',
+              products: [{ name: '意识觉醒课程', category: '知识服务', productType: 'normal', description: '冥想与心理技法', price: '888元/月', targetAudience: '寻求改变' }] },
+            { id: '4', name: '手艺人老陈', avatar: '🪵', role: '木工匠人', personality: '沉稳踏实', bio: '三十年木工坊', mapX: 20, mapY: 70, mapZone: 'craft',
+              products: [{ name: '定制木质家具', category: '实体商品', productType: 'normal', description: '手工实木家具', price: '800-5000元', targetAudience: '品质生活' }] },
+            { id: '5', name: '美食家小琳', avatar: '🍜', role: '美食博主', personality: '热情开朗', bio: '家常小馆老板', mapX: 50, mapY: 55, mapZone: 'center',
+              products: [{ name: '招牌煨面套餐', category: '餐饮', productType: 'normal', description: '秘制汤底', price: '38元/份', targetAudience: '爱吃面' }] },
+            { id: '6', name: '剧场导演大明', avatar: '🎭', role: '剧场导演', personality: '感性浪漫', bio: '「明星剧场」', mapX: 15, mapY: 40, mapZone: 'west',
+              products: [{ name: '周末即兴剧场', category: '娱乐', productType: 'normal', description: '互动戏剧', price: '68元/场', targetAudience: '艺术爱好者' }] },
+            { id: '7', name: '钱掌柜', avatar: '🏦', role: '银行家', personality: '专业权威', bio: '「富通银行」', mapX: 60, mapY: 70, mapZone: 'finance',
+              products: [{ name: '小镇快贷', category: '金融', productType: 'bubble', description: '最快3分钟放款', price: '日利率0.05%', targetAudience: '急需资金' }] },
+            { id: '8', name: '理财师Amy', avatar: '📈', role: '理财顾问', personality: '精明干练', bio: '财富管理专家', mapX: 45, mapY: 75, mapZone: 'finance',
+              products: [{ name: '稳健理财包', category: '金融', productType: 'bubble', description: '年化收益8%', price: '1万起投', targetAudience: '理财小白' }] },
+            { id: '9', name: '古董商老周', avatar: '🏺', role: '古董收藏家', personality: '沉稳内敛', bio: '小镇古董店', mapX: 25, mapY: 35, mapZone: 'west',
+              products: [{ name: ' vintage 首饰', category: '收藏', productType: 'normal', description: '复古珍品', price: '200-2000元', targetAudience: '收藏爱好者' }] },
+            { id: '10', name: '健身教练阿豪', avatar: '💪', role: '健身教练', personality: '活力满满', bio: '阳光健身房', mapX: 75, mapY: 45, mapZone: 'digital',
+              products: [{ name: '私教课程', category: '健身', productType: 'normal', description: '一对一指导', price: '200元/节', targetAudience: '健身爱好者' }] },
+        ];
+        
+        const BUILDINGS = [
+            { icon: '🏛️', x: 45, y: 50, label: '市政厅' },
+            { icon: '🏢', x: 78, y: 18, label: '科技楼' },
+            { icon: '🏫', x: 82, y: 55, label: '魔法学院' },
+            { icon: '🔧', x: 15, y: 75, label: '木工坊' },
+            { icon: '🎭', x: 15, y: 32, label: '明星剧场' },
+            { icon: '🏦', x: 50, y: 82, label: '富通银行' },
+            { icon: '☕', x: 30, y: 45, label: '晨光咖啡' },
+            { icon: '🍜', x: 55, y: 58, label: '小琳小馆' },
+        ];
+        
+        // ================== 初始化 ==================
+        async function init() {
+            loadFromStorage();
+            renderMap();
+            renderResidents();
+            renderAds();
+            await fetchAds();
+            updateLoginState();
+        }
+        
+        function loadFromStorage() {
+            const savedAds = localStorage.getItem('adstown_ads');
+            if (savedAds) {
+                state.ads = JSON.parse(savedAds);
+            } else {
+                // 预设一些示例广告
+                state.ads = [
+                    { id: '1', creatorId: '1', creatorName: '林晓咖', creatorAvatar: '☕', productName: '手冲精品咖啡', productType: 'normal', adType: 'soft_ad', adFormat: 'story', channel: 'feed', content: '清晨的第一缕阳光，搭配一杯手冲咖啡，让忙碌的生活慢下来...', creativeScore: 8, qualityScore: 9, createdAt: new Date().toISOString() },
+                    { id: '2', creatorId: '7', creatorName: '钱掌柜', creatorAvatar: '🏦', productName: '小镇快贷', productType: 'bubble', adType: 'hard_ad', adFormat: 'announcement', channel: 'feed', content: '急用钱？不用等！最快3分钟放款，无抵押信用贷款！', creativeScore: 5, qualityScore: 6, createdAt: new Date().toISOString() },
+                ];
+                saveToStorage();
+            }
+        }
+        
+        function saveToStorage() {
+            localStorage.setItem('adstown_ads', JSON.stringify(state.ads));
+        }
+        
+        // ================== 地图渲染 ==================
+        function renderMap() {
+            const map = document.getElementById('map');
+            
+            // 渲染建筑
+            BUILDINGS.forEach(b => {
+                const el = document.createElement('div');
+                el.className = 'building';
+                el.textContent = b.icon;
+                el.style.left = b.x + '%';
+                el.style.top = b.y + '%';
+                el.title = b.label;
+                map.appendChild(el);
+            });
+            
+            // 渲染居民
+            renderResidentMarkers();
+        }
+        
+        function renderResidentMarkers() {
+            const map = document.getElementById('map');
+            document.querySelectorAll('.resident').forEach(el => el.remove());
+            
+            PRESET_RESIDENTS.forEach(r => {
+                if (state.filterZone && r.mapZone !== state.filterZone) return;
+                
+                const el = document.createElement('div');
+                el.className = 'resident';
+                el.textContent = r.avatar;
+                el.style.left = r.mapX + '%';
+                el.style.top = r.mapY + '%';
+                el.style.background = getZoneColor(r.mapZone);
+                el.onclick = () => openResidentModal(r);
+                
+                const label = document.createElement('div');
+                label.className = 'resident-label';
+                label.textContent = r.name;
+                el.appendChild(label);
+                
+                map.appendChild(el);
+            });
+        }
+        
+        function getZoneColor(zone) {
+            const colors = {
+                center: '#fef08a',
+                digital: '#bfdbfe',
+                east: '#ede9fe',
+                craft: '#ffedd5',
+                west: '#d1fae5',
+                finance: '#fce7f3'
+            };
+            return colors[zone] || '#94a3b8';
+        }
+        
+        // ================== API 调用 ==================
+        async function fetchAds() {
+            try {
+                const res = await fetch(`${API_BASE}/api/ads`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.length > 0) {
+                        state.ads = data;
+                        saveToStorage();
+                    }
+                }
+            } catch (e) {
+                console.log('使用本地数据');
+            }
+        }
+        
+        async function generateAd(e) {
+            e.preventDefault();
+            
+            const creatorId = document.getElementById('creatorSelect').value;
+            const productIdx = document.getElementById('productSelect').value;
+            const adType = document.getElementById('adType').value;
+            const adFormat = document.getElementById('adFormat').value;
+            const channel = document.getElementById('channel').value;
+            const targetAudience = document.getElementById('targetAudience').value || '小镇居民';
+            
+            const creator = PRESET_RESIDENTS.find(r => r.id === creatorId);
+            const product = creator ? creator.products[parseInt(productIdx)] : null;
+            
+            if (!creator || !product) {
+                showToast('请选择居民和产品', 'error');
+                return;
+            }
+            
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ 生成中...';
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/generate-ad`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        resident: creator,
+                        product: product,
+                        adType: adType,
+                        adFormat: adFormat,
+                        channel: channel,
+                        targetAudience: targetAudience
+                    })
+                });
+                
+                let content = '';
+                let creativityScore = 5;
+                let qualityScore = 5;
+                
+                if (res.ok) {
+                    const result = await res.json();
+                    content = result.content || result.story || result.ad || '广告生成成功！';
+                    creativityScore = result.creativityScore || result.score || 7;
+                    qualityScore = result.qualityScore || result.score || 7;
+                } else {
+                    // 后端不可用，使用本地生成
+                    content = generateLocalAd(creator, product, adType, adFormat);
+                    creativityScore = Math.floor(Math.random() * 4) + 6;
+                    qualityScore = Math.floor(Math.random() * 3) + 7;
+                }
+                
+                const newAd = {
+                    id: 'ad_' + Date.now(),
+                    creatorId: creator.id,
+                    creatorName: creator.name,
+                    creatorAvatar: creator.avatar,
+                    productName: product.name,
+                    productType: product.productType,
+                    adType: adType,
+                    adFormat: adFormat,
+                    channel: channel,
+                    content: content,
+                    creativeScore: creativityScore,
+                    qualityScore: qualityScore,
+                    createdAt: new Date().toISOString()
+                };
+                
+                state.ads.unshift(newAd);
+                saveToStorage();
+                renderAds();
+                closeAdModal();
+                showToast('广告生成成功！', 'success');
+                
+            } catch (err) {
+                showToast('生成失败，请重试', 'error');
+            }
+            
+            btn.disabled = false;
+            btn.textContent = '✨ 生成广告';
+        }
+        
+        function generateLocalAd(creator, product, adType, adFormat) {
+            const templates = {
+                soft_ad: [
+                    `${creator.name}今天想和大家分享：${product.description}...`,
+                    `在${creator.role}的日常里，总少不了一些小确幸...`,
+                    `你体验过${product.name}吗？这真的是...`
+                ],
+                hard_ad: [
+                    `🔥 强烈推荐！${creator.name}的${product.name}！`,
+                    `📢 ${product.name} - ${product.price}，限时优惠！`,
+                    `🏷️ 镇民们都在用！${product.name}值得拥有！`
+                ]
+            };
+            
+            const typeTemplates = templates[adType] || templates.soft_ad;
+            return typeTemplates[Math.floor(Math.random() * typeTemplates.length)];
+        }
+        
+        // ================== 渲染 ==================
+        function renderAds() {
+            const container = document.getElementById('sidebarContent');
+            let ads = [...state.ads];
+            
+            if (state.filterZone) {
+                const zoneResidentIds = PRESET_RESIDENTS.filter(r => r.mapZone === state.filterZone).map(r => r.id);
+                ads = ads.filter(a => zoneResidentIds.includes(a.creatorId));
+            }
+            
+            if (ads.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📺</div>
+                        <p>暂无广告</p>
+                        <button class="btn btn-primary" style="margin-top:12px" onclick="openAdModal()">立即投放</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = ads.map(ad => {
+                const isBubble = ad.productType === 'bubble';
+                const typeLabel = ad.adType === 'soft_ad' ? '软广' : '硬广';
+                const typeClass = ad.adType === 'soft_ad' ? 'tag-type-soft' : 'tag-type-hard';
+                
+                return `
+                    <div class="ad-card" onclick="showAdDetail('${ad.id}')">
+                        ${isBubble ? '<div class="tag tag-bubble" style="margin-bottom:8px">⚠️ 高风险产品</div>' : ''}
+                        <div class="ad-header">
+                            <div class="ad-avatar" style="background:${getZoneColor(PRESET_RESIDENTS.find(r=>r.id===ad.creatorId)?.mapZone||'center')}">${ad.creatorAvatar}</div>
+                            <div class="ad-info">
+                                <div class="ad-author">${ad.creatorName}</div>
+                                <div class="ad-meta">${formatTime(ad.createdAt)} · ${ad.channel === 'moments' ? '朋友圈' : ad.channel === 'feed' ? '信息流' : '社群'}</div>
+                            </div>
+                        </div>
+                        <div class="ad-content">${ad.content}</div>
+                        <div class="ad-tags">
+                            <span class="tag ${typeClass}">${typeLabel}</span>
+                            <span class="tag">${ad.adFormat === 'story' ? '📖 故事' : ad.adFormat === 'dialogue' ? '💬 对话' : ad.adFormat === 'scene' ? '🌄 场景' : '✨ 体验'}</span>
+                            <span class="tag">${ad.productName}</span>
+                        </div>
+                        <div class="ad-scores">
+                            <div class="score-item">
+                                <div class="score-label">创意指数</div>
+                                <div class="score-bar"><div class="score-fill" style="width:${ad.creativeScore * 10}%;background:var(--accent)"></div></div>
+                            </div>
+                            <div class="score-item">
+                                <div class="score-label">质量评分</div>
+                                <div class="score-bar"><div class="score-fill" style="width:${ad.qualityScore * 10}%;background:var(--success)"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function renderResidents() {
+            // 渲染表单选项
+            const creatorSelect = document.getElementById('creatorSelect');
+            creatorSelect.innerHTML = '<option value="">请选择...</option>' + 
+                PRESET_RESIDENTS.map(r => `<option value="${r.id}">${r.avatar} ${r.name}</option>`).join('');
+            
+            creatorSelect.onchange = function() {
+                const productSelect = document.getElementById('productSelect');
+                const resident = PRESET_RESIDENTS.find(r => r.id === this.value);
+                if (resident) {
+                    productSelect.innerHTML = '<option value="">请选择...</option>' + 
+                        resident.products.map((p, i) => `<option value="${i}">${p.name}</option>`).join('');
+                } else {
+                    productSelect.innerHTML = '<option value="">请选择...</option>';
+                }
+            };
+        }
+        
+        // ================== 交互 ==================
+        function switchTab(tab) {
+            state.currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+            
+            if (tab === 'ads') renderAds();
+            else if (tab === 'residents') renderResidentsList();
+            else if (tab === 'stats') renderStats();
+        }
+        
+        function renderResidentsList() {
+            const container = document.getElementById('sidebarContent');
+            container.innerHTML = PRESET_RESIDENTS.map(r => `
+                <div class="ad-card" onclick="openResidentModal('${r.id}')">
+                    <div class="ad-header">
+                        <div class="ad-avatar" style="background:${getZoneColor(r.mapZone)}">${r.avatar}</div>
+                        <div class="ad-info">
+                            <div class="ad-author">${r.name}</div>
+                            <div class="ad-meta">${r.role}</div>
+                        </div>
+                    </div>
+                    <div style="font-size:0.85rem;color:var(--text-secondary)">${r.bio}</div>
+                </div>
+            `).join('');
+        }
+        
+        function renderStats() {
+            const total = state.ads.length;
+            const softAds = state.ads.filter(a => a.adType === 'soft_ad').length;
+            const hardAds = state.ads.filter(a => a.adType === 'hard_ad').length;
+            const bubbleAds = state.ads.filter(a => a.productType === 'bubble').length;
+            
+            const avgCreativity = total > 0 ? (state.ads.reduce((s, a) => s + a.creativeScore, 0) / total).toFixed(1) : 0;
+            const avgQuality = total > 0 ? (state.ads.reduce((s, a) => s + a.qualityScore, 0) / total).toFixed(1) : 0;
+            
+            const container = document.getElementById('sidebarContent');
+            container.innerHTML = `
+                <div class="stats-bar">
+                    <div class="stat-item"><div class="stat-value">${total}</div><div class="stat-label">广告总数</div></div>
+                    <div class="stat-item"><div class="stat-value">${softAds}</div><div class="stat-label">软广</div></div>
+                    <div class="stat-item"><div class="stat-value">${hardAds}</div><div class="stat-label">硬广</div></div>
+                    <div class="stat-item"><div class="stat-value">${bubbleAds}</div><div class="stat-label">高风险</div></div>
+                </div>
+                <div style="padding:12px;background:var(--bg-card);border-radius:10px;">
+                    <div style="font-weight:600;margin-bottom:12px">📊 平均评分</div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+                        <span style="color:var(--text-secondary)">创意指数</span>
+                        <span style="color:var(--accent)">${avgCreativity}/10</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between">
+                        <span style="color:var(--text-secondary)">质量评分</span>
+                        <span style="color:var(--success)">${avgQuality}/10</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function filterByZone(zone) {
+            if (state.filterZone === zone) {
+                state.filterZone = null;
+            } else {
+                state.filterZone = zone;
+            }
+            renderResidentMarkers();
+            renderAds();
+            showToast(state.filterZone ? `已筛选 ${zone} 区域` : '已清除筛选', 'success');
+        }
+        
+        function refreshAds() {
+            fetchAds().then(() => {
+                renderAds();
+                showToast('已刷新', 'success');
+            });
+        }
+        
+        // ================== 弹窗 ==================
+        function openAdModal() {
+            document.getElementById('adModal').classList.add('active');
+        }
+        
+        function closeAdModal() {
+            document.getElementById('adModal').classList.remove('active');
+        }
+        
+        function openResidentModal(residentOrId) {
+            const resident = typeof residentOrId === 'string' 
+                ? PRESET_RESIDENTS.find(r => r.id === residentOrId) 
+                : residentOrId;
+            
+            if (!resident) return;
+            
+            document.getElementById('residentName').textContent = `${resident.avatar} ${resident.name}`;
+            document.getElementById('residentContent').innerHTML = `
+                <div style="margin-bottom:16px">
+                    <div style="font-size:0.85rem;color:var(--text-secondary)">职业</div>
+                    <div>${resident.role}</div>
+                </div>
+                <div style="margin-bottom:16px">
+                    <div style="font-size:0.85rem;color:var(--text-secondary)">性格</div>
+                    <div>${resident.personality}</div>
+                </div>
+                <div style="margin-bottom:16px">
+                    <div style="font-size:0.85rem;color:var(--text-secondary)">简介</div>
+                    <div>${resident.bio}</div>
+                </div>
+                <div style="margin-bottom:16px">
+                    <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px">在售产品</div>
+                    ${resident.products.map(p => `
+                        <div style="padding:10px;background:var(--bg-card);border-radius:8px;margin-bottom:8px">
+                            <div style="font-weight:600">${p.name}</div>
+                            <div style="font-size:0.8rem;color:var(--text-secondary)">${p.description}</div>
+                            <div style="font-size:0.85rem;margin-top:4px">
+                                <span style="color:var(--accent)">${p.price}</span>
+                                ${p.productType === 'bubble' ? '<span class="tag tag-bubble" style="margin-left:8px">高风险</span>' : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            document.getElementById('residentModal').classList.add('active');
+        }
+        
+        function closeResidentModal() {
+            document.getElementById('residentModal').classList.remove('active');
+        }
+        
+        // ================== 登录 ==================
+        function login() {
+            window.location.href = `${API_BASE}/api/login`;
+        }
+        
+        function updateLoginState() {
+            const token = localStorage.getItem('adstown_token');
+            const userName = localStorage.getItem('adstown_user');
+            
+            if (token) {
+                document.getElementById('loginBtn').textContent = `👤 ${userName || '用户'}`;
+                document.getElementById('loginBtn').onclick = () => {
+                    localStorage.removeItem('adstown_token');
+                    localStorage.removeItem('adstown_user');
+                    showToast('已退出登录', 'success');
+                    updateLoginState();
+                };
+            }
+        }
+        
+        // 检查 URL 参数（OAuth 回调）
+        function checkAuthCallback() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('token')) {
+                localStorage.setItem('adstown_token', params.get('token'));
+                localStorage.setItem('adstown_user', params.get('user_name') || '用户');
+                window.history.replaceState({}, '', window.location.pathname);
+                updateLoginState();
+                showToast('登录成功！', 'success');
+            }
+        }
+        
+        // ================== 工具 ==================
+        function formatTime(isoString) {
+            const date = new Date(isoString);
+            const now = new Date();
+            const diff = now - date;
+            
+            if (diff < 60000) return '刚刚';
+            if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
+            if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
+            return date.toLocaleDateString('zh-CN');
+        }
+        
+        function showToast(msg, type = '') {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = 'toast show ' + type;
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        
+        // ================== 启动 ==================
+        checkAuthCallback();
+        init();
+    </script>
+</body>
+</html>

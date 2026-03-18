@@ -5,6 +5,14 @@ Vercel Serverless Python
 import os
 import random
 import json
+
+# 加载 .env 文件（本地开发）
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 import httpx
 
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")

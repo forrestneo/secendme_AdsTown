@@ -1,5 +1,13 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/api/index.py" }
-  ]
+    { "source": "/api/(.*)", "destination": "/api/index.py" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "env": {
+    "SECONDME_CLIENT_ID": "@secondme-client-id",
+    "SECONDME_CLIENT_SECRET": "@secondme-client-secret",
+    "SECONDME_REDIRECT_URI": "@secondme-redirect-uri",
+    "FRONTEND_URL": "@frontend-url",
+    "DEEPSEEK_API_KEY": "@deepseek-api-key"
+  }
 }
